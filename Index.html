@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RPG BattleRoyale (Single File)</title>
+  <style>
+    :root{--bg:#0f1724;--panel:#0b1220;--accent:#7c3aed;--muted:#9aa4b2;--good:#10b981;--bad:#ef4444}
+    html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;color:#dbe7f3;background:linear-gradient(180deg,var(--bg),#071126)}
+    .app{display:grid;grid-template-columns:350px 1fr 320px;gap:16px;padding:18px;height:100%}
+    .panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:10px;padding:14px;box-shadow:0 6px 18px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.04)}
+    header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding:12px 18px;margin-bottom:6px}
+    h1{font-size:18px;margin:0}
+    .small{font-size:12px;color:var(--muted)}
+    .center{display:flex;align-items:center;gap:8px}
+    #log{height:280px;overflow:auto;background:rgba(0,0,0,0.15);padding:8px;border-radius:8px;font-family:monospace;font-size:13px}
+    button{background:var(--accent);color:white;padding:8px 10px;border-radius:8px;border:none;cursor:pointer}
+    .muted-btn{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+    .row{display:flex;gap:8px;align-items:center}
+    .stat{display:flex;justify-content:space-between;padding:6px 8px;background:rgba(255,255,255,0.02);border-radius:8px;margin-bottom:6px}
+    .inventory{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+    .item{background:rgba(255,255,255,0.02);padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.03);font-size:13px}
+    .shop-list{max-height:420px;overflow:auto}
+    .big{font-size:16px}
+    .right-panel{display:flex;flex-direction:column;gap:10px}
+    .arena{background:linear-gradient(180deg,#062034,#031022);border-radius:10px;padding:12px;min-height:420px;color:#cfe7ff}
+    .player-row{display:flex;justify-content:space-between;padding:6px;border-radius:6px;background:rgba(255,255,255,0.02);margin-bottom:6px}
+    .hpbar{height:10px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden}
+    .hpfill{height:100%;background:linear-gradient(90deg,var(--good),#3b82f6)}
+    input,select{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px;border-radius:8px;color:var(--muted)}
+    footer{grid-column:1/-1;padding:8px 18px;color:var(--muted);font-size:13px}
+    .controls{display:flex;gap:8px;flex-wrap:wrap}
+    .flexcol{display:flex;flex-direction:column}
+    .badge{padding:4px 8px;border-radius:999px;background:rgba(255,255,255,0.03);font-size:12px}
+    .hidden{display:none}
+    .centered{display:flex;align-items:center;justify-content:center}
+  </style>
+</head>
+<body>
+  <div style="display:flex;align-items:center;justify-content:center;padding:12px 18px">
+    <div style="max-width:1100px;width:100%" class="app">
+      <div class="panel">
+        <div class="row" style="justify-content:space-between;align-items:flex-start">
+          <div>
+            <h1>RPG BattleRoyale</h1>
+            <div class="small">턴제 RPG 스타일 배틀로얄 — 상점, 저장, 판매, 인벤토리 포함</div>
+          </div>
+          <div class="flexcol">
+            <div class="small">골드: <span id="gold">0</span></div>
+            <div class="small">라운드: <span id="round">0</span></div>
+          </div>
+        </div>
+        <hr style="opacity:.06;margin:10px 0">
+        <div id="log" aria-live="polite"></div>
+        <div style="margin-top:10px;display:flex;gap:8px;justify-content:space-between;align-items:center">
+          <div class="controls">
+            <button id="startBtn">게임 시작</button>
+            <button id="nextRoundBtn" class="muted-btn">다음 라운드</button>
+            <button id="autoplayBtn" class="muted-btn">자동 플레이: OFF</button>
+          </div>
+          <div class="row">
+            <button id="saveBtn" class="muted-btn">저장</button>
+            <button id="loadBtn" class="muted-btn">불러오기</button>
+            <button id="exportBtn" class="muted-btn">내보내기</button>
+            <input id="importFile" class="hidden" type="file" accept="application/json">
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="display:flex;flex-direction:column">
+        <div class="small">플레이어</div>
+        <div class="stat">
+          <div>
+            <div id="playerName" class="big">용사</div>
+            <div class="small">레벨: <span id="playerLevel">1</span> · 경험치: <span id="playerExp">0</span>/<span id="playerExpToNext">100</span></div>
+          </div>
+          <div style="width:120px">
+            <div class="small">HP</div>
+            <div class="hpbar"><div id="playerHpFill" class="hpfill" style="width:100%"></div></div>
+            <div style="font-size:12px;text-align:right" id="playerHpText">100/100</div>
+          </div>
+        </div>
+
+        <div class="small">스탯</div>
+        <div class="stat"><div>공격</div><div id="statAtk">10</div></div>
+        <div class="stat"><div>방어</div><div id="statDef">5</div></div>
+        <div class="stat"><div>속도</div><div id="statSpd">5</div></div>
+        <hr style="opacity:.06;margin:10px 0">
+
+        <div class="small">인벤토리 <span class="small" id="invCount">(0)</span></div>
+        <div class="inventory" id="inventory"></div>
+
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button id="useItemBtn" class="muted-btn">사용</button>
+          <button id="sellItemBtn" class="muted-btn">판매</button>
+          <button id="dropItemBtn" class="muted-btn">버리기</button>
+        </div>
+      </div>
+
+      <div class="panel right-panel">
+        <div class="small">상점</div>
+        <div class="shop-list" id="shopList"></div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+          <button id="buyBtn">구매</button>
+          <select id="qtySelect"><option value="1">x1</option><option value="5">x5</option><option value="10">x10</option></select>
+        </div>
+
+        <hr style="opacity:.06;margin:6px 0">
+        <div class="small">아레나</div>
+        <div class="arena" id="arena">
+          <div id="arenaPlayers"></div>
+        </div>
+
+        <div style="margin-top:8px;display:flex;gap:8px;justify-content:space-between;align-items:center">
+          <div class="small">자동 난수 시드</div>
+          <input id="seedInput" placeholder="옵션: 숫자 입력" />
+        </div>
+
+      </div>
+
+      <footer class="panel small centered">키: 시작(Start) · 다음 라운드(Next) · 자동(Autoplay). 이 파일을 브라우저에 열어 플레이하세요.</footer>
+    </div>
+  </div>
+
+<script>
+/* ----------------------------
+   단일 파일 RPG BattleRoyale
+   기능:
+   - 8명 배틀로얄(유저 + AI)
+   - 라운드별 전투 시뮬레이션
+   - 상점(구매/판매)
+   - 인벤토리(사용/판매/버리기)
+   - 저장/불러오기(로컬스토리지 + 내보내기/가져오기)
+   - 자동 플레이 모드
+   ----------------------------*/
+
+// 유틸
+const $ = id => document.getElementById(id);
+const rand = (min, max) => Math.floor(Math.random()*(max-min+1))+min;
+const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
+
+// 게임 상태
+let state = {
+  gold: 50,
+  round: 0,
+  player: null,
+  players: [],
+  shop: [],
+  inventory: [],
+  autoplay: false,
+  seed: null
+};
+
+// 아이템 정의
+const ITEM_DEFS = [
+  {id:'potion_small',name:'소형 포션',type:'consumable',desc:'HP 30 회복',value:20,effect: (u)=>{u.hp = Math.min(u.maxHp, u.hp+30)}},
+  {id:'potion_big',name:'대형 포션',type:'consumable',desc:'HP 80 회복',value:60,effect: (u)=>{u.hp = Math.min(u.maxHp, u.hp+80)}},
+  {id:'sword_iron',name:'철검',type:'equip',desc:'+6 공격',value:80,equip:{atk:6}},
+  {id:'shield_small',name:'작은 방패',type:'equip',desc:'+4 방어',value:60,equip:{def:4}},
+  {id:'boots',name:'경량 부츠',type:'equip',desc:'+3 속도',value:50,equip:{spd:3}},
+  {id:'coin_bag',name:'돈주머니',type:'consumable',desc:'즉시 골드 +30',value:30,effect:(u)=>{state.gold+=30}}
+];
+
+function makeShop(){
+  const shop = [];
+  for(let i=0;i<6;i++) shop.push(structClone(ITEM_DEFS[rand(0,ITEM_DEFS.length-1)]));
+  state.shop = shop;
+}
+
+// 플레이어/AI 생성
+function makePlayer(name, isUser=false){
+  const base = {name, isUser, level:1, exp:0, maxHp:100, hp:100, atk:10, def:5, spd:5, alive:true, id: uniqueId(), equip:{}, inventory:[]};
+  return base;
+}
+
+function uniqueId(){return 'id_'+Math.random().toString(36).slice(2,9)}
+function structClone(obj){return JSON.parse(JSON.stringify(obj))}
+
+// 초기화
+function resetGame(){
+  state.gold = 50; state.round=0; state.inventory = [];
+  state.player = makePlayer('용사', true);
+  state.players = [state.player];
+  for(let i=1;i<8;i++) state.players.push(makePlayer('적_' + i));
+  makeShop();
+  log('게임이 초기화 되었습니다. 시작 버튼을 눌러 배틀로얄을 시작하세요.');
+  renderAll();
+}
+
+// 렌더
+function renderAll(){
+  $('gold').textContent = state.gold;
+  $('round').textContent = state.round;
+  renderPlayerPanel();
+  renderInventory();
+  renderShop();
+  renderArena();
+}
+
+function renderPlayerPanel(){
+  const p = state.player;
+  $('playerName').textContent = p.name;
+  $('playerLevel').textContent = p.level;
+  $('playerExp').textContent = p.exp;
+  $('playerExpToNext').textContent = p.level * 100;
+  const hpPerc = Math.floor(p.hp / p.maxHp * 100);
+  $('playerHpFill').style.width = hpPerc + '%';
+  $('playerHpText').textContent = `${p.hp}/${p.maxHp}`;
+  $('statAtk').textContent = p.atk + (p.equip.atk? ' (+'+p.equip.atk+')' : '');
+  $('statDef').textContent = p.def + (p.equip.def? ' (+'+p.equip.def+')' : '');
+  $('statSpd').textContent = p.spd + (p.equip.spd? ' (+'+p.equip.spd+')' : '');
+}
+
+function renderInventory(){
+  const inv = $('inventory'); inv.innerHTML='';
+  state.inventory.forEach((it, idx)=>{
+    const el = document.createElement('div'); el.className='item'; el.dataset.idx=idx;
+    el.innerHTML = `<div style="font-weight:600">${it.name}</div><div class="small">${it.desc}</div><div class="small">가치: ${it.value}G</div>`;
+    el.addEventListener('click', ()=>{selectInventory(idx)});
+    inv.appendChild(el);
+  });
+  $('invCount').textContent = `(${state.inventory.length})`;
+}
+
+let selectedInv = null;
+function selectInventory(idx){
+  selectedInv = idx; const nodes = document.querySelectorAll('#inventory .item'); nodes.forEach(n=>n.style.outline=''); nodes[idx].style.outline='2px solid rgba(124,58,237,0.6)';
+}
+
+function renderShop(){
+  const list = $('shopList'); list.innerHTML='';
+  state.shop.forEach((it,idx)=>{
+    const el = document.createElement('div'); el.className='item'; el.dataset.idx=idx;
+    el.innerHTML = `<div style="font-weight:600">${it.name} <span class="badge">${it.type}</span></div><div class="small">${it.desc}</div><div class="small">가격: ${it.value}G</div>`;
+    el.addEventListener('click', ()=>{selectShop(idx)});
+    list.appendChild(el);
+  });
+}
+let selectedShop = null;
+function selectShop(idx){ selectedShop = idx; document.querySelectorAll('#shopList .item').forEach(n=>n.style.outline=''); document.querySelectorAll('#shopList .item')[idx].style.outline='2px solid rgba(124,58,237,0.6)'; }
+
+function renderArena(){
+  const a = $('arenaPlayers'); a.innerHTML='';
+  state.players.forEach(p=>{
+    const el = document.createElement('div'); el.className='player-row';
+    el.innerHTML = `<div>${p.name}${p.isUser? ' (YOU)':''} ${!p.alive?'<span class="small">(사망)</span>':''}</div><div style="min-width:160px"><div class="hpbar"><div class="hpfill" style="width:${Math.max(0,Math.floor(p.hp/p.maxHp*100))}%"></div></div><div style="text-align:right;font-size:12px">HP:${p.hp}/${p.maxHp}</div></div>`;
+    a.appendChild(el);
+  });
+}
+
+// 전투 시뮬레이션(라운드 진행)
+function runRound(){
+  if(state.players.filter(p=>p.alive).length <= 1){ log('이미 승부가 결정된 상태입니다. 새로운 게임을 시작하거나 재설정하세요.'); return; }
+  state.round++;
+  $('round').textContent = state.round;
+  log(`=== 라운드 ${state.round} 시작 ===`);
+
+  // 행동 순서: 속도 순
+  const actors = state.players.filter(p=>p.alive).sort((a,b)=> (b.spd + (b.equip.spd||0)) - (a.spd + (a.equip.spd||0)) );
+  actors.forEach(actor=>{
+    if(!actor.alive) return;
+    // 타깃 선택: 가장 HP 높은(적) 혹은 랜덤
+    const targets = state.players.filter(p=>p.alive && p !== actor);
+    if(targets.length===0) return;
+    const tgt = targets[rand(0,targets.length-1)];
+    // 데미지 계산
+    const atk = actor.atk + (actor.equip.atk||0) + rand(-2,2);
+    const def = tgt.def + (tgt.equip.def||0);
+    const dmg = Math.max(1, atk - Math.floor(def/2) + rand(-1,2));
+    tgt.hp -= dmg;
+    log(`${actor.name}이(가) ${tgt.name}에게 ${dmg} 데미지! (${Math.max(0,tgt.hp)}/${tgt.maxHp})`);
+    if(tgt.hp <= 0){ tgt.alive = false; tgt.hp = 0; log(`💀 ${tgt.name} 이(가) 전투불능!`); }
+  });
+
+  // 전리품: 라운드 종료 후 죽은 적의 아이템 획득 확률
+  const dead = state.players.filter(p=>!p.alive);
+  dead.forEach(d=>{
+    if(d.isLooted) return; d.isLooted=true;
+    // 작게 골드 주기
+    const gained = rand(5,25);
+    state.gold += gained; log(`${d.name}의 잔해에서 ${gained}G 획득`);
+    // 가끔 아이템 드롭
+    if(Math.random() < 0.3){ const it = structClone(ITEM_DEFS[rand(0,ITEM_DEFS.length-1)]); state.inventory.push(it); log(`${d.name}의 장비를 획득: ${it.name}`); }
+  });
+
+  // 경험치 & 레벨업 for 살아있는 플레이어들
+  state.players.forEach(p=>{
+    if(!p.alive) return;
+    const gain = rand(8,20);
+    p.exp += gain;
+    if(p.exp >= p.level * 100){ p.exp -= p.level*100; p.level++; p.maxHp += 12; p.atk += 3; p.def +=2; p.spd +=1; p.hp = p.maxHp; log(`${p.name} 레벨업! 레벨 ${p.level}`); }
+  });
+
+  // 승리 조건 확인
+  const alive = state.players.filter(p=>p.alive);
+  if(alive.length === 1){ log(`🏆 최종 승자: ${alive[0].name}`); state.autoplay=false; $('autoplayBtn').textContent='자동 플레이: OFF'; }
+  renderAll();
+  autosave();
+}
+
+// 상점 관련
+function buySelected(){
+  if(selectedShop==null){ alert('상점에서 아이템을 선택하세요.'); return; }
+  const qty = Number($('qtySelect').value);
+  const item = structClone(state.shop[selectedShop]);
+  const total = item.value * qty;
+  if(state.gold < total){ alert('골드가 부족합니다.'); return; }
+  state.gold -= total;
+  for(let i=0;i<qty;i++) state.inventory.push(structClone(item));
+  log(`${item.name} x${qty} 구매 (${total}G)`);
+  renderAll();
+}
+
+function sellSelectedItem(){
+  if(selectedInv==null){ alert('판매할 아이템을 인벤토리에서 선택하세요.'); return; }
+  const it = state.inventory[selectedInv];
+  const gain = Math.floor(it.value * 0.6);
+  state.gold += gain;
+  state.inventory.splice(selectedInv,1);
+  selectedInv = null;
+  log(`${it.name} 판매: ${gain}G 획득`);
+  renderAll();
+}
+
+function useSelectedItem(){
+  if(selectedInv==null){ alert('사용할 아이템을 인벤토리에서 선택하세요.'); return; }
+  const it = state.inventory[selectedInv];
+  if(it.type === 'consumable'){
+    if(it.effect) it.effect(state.player);
+    log(`${it.name} 사용.`);
+    state.inventory.splice(selectedInv,1);
+    selectedInv=null; renderAll();
+  } else if(it.type === 'equip'){
+    // 장착: 장비는 단일 슬롯 합산
+    state.player.equip = {...state.player.equip, ...it.equip};
+    log(`${it.name} 장착. 스탯이 증가합니다.`);
+    state.inventory.splice(selectedInv,1);
+    selectedInv=null; renderAll();
+  }
+}
+
+// 저장/불러오기
+function saveToLocal(){
+  const save = structClone({gold:state.gold, round:state.round, player:state.player, players:state.players, inventory:state.inventory, shop:state.shop});
+  localStorage.setItem('rbr_save', JSON.stringify(save));
+  log('게임을 로컬에 저장했습니다.');
+}
+function loadFromLocal(){
+  const raw = localStorage.getItem('rbr_save');
+  if(!raw){ alert('저장된 데이터가 없습니다.'); return; }
+  const s = JSON.parse(raw);
+  state.gold = s.gold; state.round = s.round; state.player = s.player; state.players = s.players; state.inventory = s.inventory; state.shop = s.shop;
+  log('로컬에서 저장을 불러왔습니다.'); renderAll();
+}
+function exportSave(){
+  const save = structClone({gold:state.gold, round:state.round, player:state.player, players:state.players, inventory:state.inventory, shop:state.shop});
+  const data = JSON.stringify(save, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='rbr_save.json'; a.click(); URL.revokeObjectURL(url);
+}
+function importSave(file){
+  const reader = new FileReader();
+  reader.onload = e=>{ try{ const s = JSON.parse(e.target.result); state.gold = s.gold; state.round = s.round; state.player = s.player; state.players = s.players; state.inventory = s.inventory; state.shop = s.shop; log('파일에서 저장을 불러왔습니다.'); renderAll(); }catch(err){alert('잘못된 파일입니다.')} }
+  reader.readAsText(file);
+}
+
+// 자동 플레이
+let autoplayInterval = null;
+function toggleAutoplay(){ state.autoplay = !state.autoplay; $('autoplayBtn').textContent = `자동 플레이: ${state.autoplay? 'ON':'OFF'}`; if(state.autoplay){ autoplayInterval = setInterval(()=>{ if(state.players.filter(p=>p.alive).length>1) runRound(); else clearInterval(autoplayInterval); }, 900); } else { clearInterval(autoplayInterval); } }
+
+// 로그
+function log(txt){ const el = $('log'); const time = new Date().toLocaleTimeString(); el.innerHTML += `[${time}] ${txt}<br>`; el.scrollTop = el.scrollHeight; }
+
+function autosave(){ try{ saveToLocal(); }catch(e){} }
+
+// 이벤트 바인딩
+window.onload = ()=>{
+  resetGame();
+  $('startBtn').addEventListener('click', ()=>{ resetGame(); state.players.forEach(p=>{p.hp=p.maxHp;p.alive=true;p.isLooted=false}); runRound(); });
+  $('nextRoundBtn').addEventListener('click', ()=> runRound());
+  $('buyBtn').addEventListener('click', buySelected);
+  $('sellItemBtn').addEventListener('click', sellSelectedItem);
+  $('useItemBtn').addEventListener('click', useSelectedItem);
+  $('dropItemBtn').addEventListener('click', ()=>{ if(selectedInv==null){alert('버릴 아이템을 선택하세요.');return;} const it=state.inventory.splice(selectedInv,1)[0]; selectedInv=null; log(`${it.name} 을(를) 버렸습니다.`); renderAll(); });
+  $('saveBtn').addEventListener('click', saveToLocal);
+  $('loadBtn').addEventListener('click', loadFromLocal);
+  $('exportBtn').addEventListener('click', exportSave);
+  $('importFile').addEventListener('change', e=>{ if(e.target.files.length) importSave(e.target.files[0]); });
+  $('autoplayBtn').addEventListener('click', toggleAutoplay);
+  $('seedInput').addEventListener('change', (e)=>{ state.seed = e.target.value ? Number(e.target.value): null; log('시드가 설정되었습니다: '+state.seed); });
+
+  // 간단한 키 바인딩
+  window.addEventListener('keydown', (e)=>{
+    if(e.key.toLowerCase()==='s'){ saveToLocal(); }
+    if(e.key.toLowerCase()==='n'){ runRound(); }
+    if(e.key.toLowerCase()==='a'){ toggleAutoplay(); }
+  });
+}
+
+// 초반 샘플 아이템 몇개 지급
+state.inventory.push(structClone(ITEM_DEFS[0])); state.inventory.push(structClone(ITEM_DEFS[2]));
+
+</script>
+</body>
+</html>
